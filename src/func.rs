@@ -12,6 +12,7 @@ use alloc::{
 };
 use core::fmt;
 use parity_wasm::elements::Local;
+use alloc::ops::Deref;
 
 /// Reference to a function (See [`FuncInstance`] for details).
 ///
@@ -63,7 +64,7 @@ impl fmt::Debug for FuncInstance {
             &FuncInstanceInternal::Internal { ref signature, .. } => {
                 // We can't write description of self.module here, because it generate
                 // debug string for function instances and this will lead to infinite loop.
-                write!(f, "Internal {{ signature={:?} }}", signature,)
+                write!(f, "Internal {{ signature={:?} }}", signature, )
             }
             &FuncInstanceInternal::Host { ref signature, .. } => {
                 write!(f, "Host {{ signature={:?} }}", signature)
@@ -142,13 +143,17 @@ impl FuncInstance {
         check_function_args(func.signature(), &args)?;
         match *func.as_internal() {
             FuncInstanceInternal::Internal { .. } => {
+                println!("[WASMI func] internal ({:?})->({:?}); args {:?}",
+                         func.deref().signature().params(), func.deref().signature().return_type(), args);
                 let mut interpreter = Interpreter::new(func, args, None)?;
                 interpreter.start_execution(externals)
             }
             FuncInstanceInternal::Host {
                 ref host_func_index,
                 ..
-            } => externals.invoke_index(*host_func_index, args.into()),
+            } => {
+                externals.invoke_index(*host_func_index, args.into())
+            }
         }
     }
 
@@ -168,6 +173,8 @@ impl FuncInstance {
         check_function_args(func.signature(), &args)?;
         match *func.as_internal() {
             FuncInstanceInternal::Internal { .. } => {
+                println!("[WASMI func] internal ({:?})->({:?}); args {:?}",
+                         func.deref().signature().params(), func.deref().signature().return_type(), args);
                 let mut interpreter = Interpreter::new(func, args, Some(stack_recycler))?;
                 let return_value = interpreter.start_execution(externals);
                 stack_recycler.recycle(interpreter);
@@ -176,7 +183,9 @@ impl FuncInstance {
             FuncInstanceInternal::Host {
                 ref host_func_index,
                 ..
-            } => externals.invoke_index(*host_func_index, args.into()),
+            } => {
+                externals.invoke_index(*host_func_index, args.into())
+            },
         }
     }
 
@@ -202,6 +211,8 @@ impl FuncInstance {
         check_function_args(func.signature(), &args)?;
         match *func.as_internal() {
             FuncInstanceInternal::Internal { .. } => {
+                println!("[WASMI func] resumable invoke ({:?})->({:?}); args {:?}",
+                         func.deref().signature().params(), func.deref().signature().return_type(), args);
                 let interpreter = Interpreter::new(func, &*args, None)?;
                 Ok(FuncInvocation {
                     kind: FuncInvocationKind::Internal(interpreter),
@@ -210,13 +221,15 @@ impl FuncInstance {
             FuncInstanceInternal::Host {
                 ref host_func_index,
                 ..
-            } => Ok(FuncInvocation {
-                kind: FuncInvocationKind::Host {
-                    args,
-                    host_func_index: *host_func_index,
-                    finished: false,
-                },
-            }),
+            } => {
+                Ok(FuncInvocation {
+                    kind: FuncInvocationKind::Host {
+                        args,
+                        host_func_index: *host_func_index,
+                        finished: false,
+                    },
+                })
+            },
         }
     }
 }
@@ -292,6 +305,12 @@ impl<'args> FuncInvocation<'args> {
     ) -> Result<Option<RuntimeValue>, ResumableError> {
         match self.kind {
             FuncInvocationKind::Internal(ref mut interpreter) => {
+                println!("[WASMI func] resumable start");
+                println!("Call stack:");
+                for func in &interpreter.call_stack.buf {
+                    println!("pos {}, func: ({:?})->{:?} ",
+                             func.position, func.function.signature().params(), func.function.signature().return_type());
+                }
                 if interpreter.state() != &InterpreterState::Initialized {
                     return Err(ResumableError::AlreadyStarted);
                 }

@@ -9,12 +9,7 @@ use crate::table::TableRef;
 use crate::types::{GlobalDescriptor, MemoryDescriptor, TableDescriptor};
 use crate::{Error, MemoryInstance, Module, RuntimeValue, Signature, TableInstance, Trap};
 use alloc::collections::BTreeMap;
-use alloc::{
-    borrow::ToOwned,
-    rc::Rc,
-    string::{String, ToString},
-    vec::Vec,
-};
+use alloc::{borrow::ToOwned, rc::Rc, string::{String, ToString}, vec::Vec};
 use core::cell::{Ref, RefCell};
 use core::fmt;
 use parity_wasm::elements::{External, InitExpr, Instruction, Internal, ResizableLimits, Type};
@@ -158,7 +153,7 @@ pub struct ModuleInstance {
     funcs: RefCell<Vec<FuncRef>>,
     memories: RefCell<Vec<MemoryRef>>,
     globals: RefCell<Vec<GlobalRef>>,
-    exports: RefCell<BTreeMap<String, ExternVal>>,
+    pub exports: RefCell<BTreeMap<String, ExternVal>>,
 }
 
 impl ModuleInstance {
@@ -535,6 +530,7 @@ impl ModuleInstance {
         loaded_module: &'m Module,
         imports: &I,
     ) -> Result<NotStartedModuleRef<'m>, Error> {
+        println!("[WASMI module] New module");
         let module = loaded_module.module();
 
         let mut extern_vals = Vec::new();

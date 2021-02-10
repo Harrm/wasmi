@@ -211,6 +211,8 @@ pub trait Externals {
         index: usize,
         args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, Trap>;
+
+    fn name_by_index(&self, index: usize) -> Option<String>;
 }
 
 /// Implementation of [`Externals`] that just traps on [`invoke_index`].
@@ -226,6 +228,10 @@ impl Externals for NopExternals {
         _args: RuntimeArgs,
     ) -> Result<Option<RuntimeValue>, Trap> {
         Err(TrapKind::Unreachable.into())
+    }
+
+    fn name_by_index(&self, _: usize) -> Option<String> {
+        None
     }
 }
 
